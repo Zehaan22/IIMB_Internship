@@ -1,33 +1,43 @@
-load("Board_Data.Rdata")
-load("Time_query_data.Rdata")
+---
+title: "Initial Data Analysis"
+author: "Zehaan Naik"
+format: html
+editor: visual
+---
 
+## Data Description
+
+We've collected the data for a total of 17460 countries using two methods:
+
+1.  BDP: This query method gave us most amount of data for all the variables but resulted in similar values for all 5 years. This leads me to believe that this query method is not suited for obtaining time-series data. However, this gave us good insights on our values of interest for the year 2023 and would be useful for some time static analysis.
+2.  BDH: This query method gave us sparse data for only 6 of the 11 values of interest. However this data showed different values for each year which leads us to believe that this method is good to collect time series data. We will use this to track growth and change across time for several variables.
+
+Variables of Interest:
+
+Following are the variables available in BDH or time query data.
+
+1.  Country
+2.  CEO Compensation
+3.  Board average age
+4.  CEO Average tenure
+5.  Chairman Average tenure
+6.  Board Average tenure
+
+Following are the extra variables available in the BDP data.
+
+1.  CEO Duality
+2.  Board Size
+3.  \% of independent board members
+4.  \% of female board members
+5.  Number of board meetings in a year
+
+For the time query data, the number of non-NaN data points in the data set are $3221$.
+
+```{r,echo=FALSE}
+load("Time_query_data.Rdata")
 library(dplyr)
 library(ggplot2)
-# Loading the data that has no NA values for 2023 compensation
-dat.time.2023 <- dat.time%>%
-  filter(!is.na(`Total Compensation Paid to CEO 2023`))
 
-
-
-## Companies that have same compensation for all 5 years
-common.dat <- dat.time.2023%>%
-  filter(`Total Compensation Paid to CEO 2023` == `Total Compensation Paid to CEO 2022`)
-
-common.dat <- common.dat%>%
-  filter(`Total Compensation Paid to CEO 2022` == `Total Compensation Paid to CEO 2021`)
-
-common.dat <- common.dat%>%
-  filter(`Total Compensation Paid to CEO 2021` == `Total Compensation Paid to CEO 2020`)
-
-common.dat <- common.dat%>%
-  filter(`Total Compensation Paid to CEO 2020` == `Total Compensation Paid to CEO 2019`)
-
-
-## Unique compensation values
-length(unique(dat.time.2023$`Total Compensation Paid to CEO 2023`))
-
-
-## Cleaning up dat.time
 dat.time <- dat.time%>%
   filter(!is.na(`Total Compensation Paid to CEO 2019`))
 dat.time <- dat.time%>%
@@ -38,6 +48,16 @@ dat.time <- dat.time%>%
   filter(!is.na(`Total Compensation Paid to CEO 2022`))
 dat.time <- dat.time%>%
   filter(!is.na(`Total Compensation Paid to CEO 2023`))
+print(length(dat.time$Country))
+```
+
+### Country Analysis
+
+The first bit of analysis that we want to perform on this data is to group the data based on the country of origin and try to observe trends in the growth of CEO compensation as a metric for the growth of the company.
+
+The following plot describes the average compensation of a CEO in various countries across 5 years:
+
+```{r,echo=FALSE}
 
 ## Country Analysis
 county.group.dat <- dat.time%>%
@@ -51,16 +71,35 @@ county.group.dat <- dat.time%>%
   )%>%
   ungroup()
 
+
 ## Looking at the average comensation values for all the years across various companies
 ggplot(county.group.dat)+
   geom_line(aes(x = Country, y = Avg_CEO_Comp_2019, col = "2019", group = 1))+
   geom_line(aes(x = Country, y = Avg_CEO_Comp_2020, col = "2020", group = 1))+
   geom_line(aes(x = Country, y = Avg_CEO_Comp_2021, col = "2021", group = 1))+
   geom_line(aes(x = Country, y = Avg_CEO_Comp_2022, col = "2022", group = 1))+
-  geom_line(aes(x = Country, y = Avg_CEO_Comp_2023, col = "2023", group = 1))
-  
+  geom_line(aes(x = Country, y = Avg_CEO_Comp_2023, col = "2023", group = 1))+
+  ylab("Average CEO Compensation")+
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+We observe that there are a few outliers in our data and this is more evident in the quantile analysis of the compensation values:
+
+```{r,echo=FALSE}
 ## Numerical Summary
 summary(county.group.dat$Avg_CEO_Comp_2019)
+```
+
+Hence, we divide the countries into 4 classes:
+
+1.  Average compensation in the range 1e5-1e6
+2.  Average compensation in the range 1e6-1e7
+3.  Average compensation in the range 1e7-1e8
+4.  Average compensation greater than 1e8
+
+The following plots better illustrate the comparative between the CEO compensation over the years between various countries.
+
+```{r,echo=FALSE}
 
 ## Grouping the Countries into various compensation ranges
 country.group.dat.1e5to1e6 <- county.group.dat%>%
@@ -71,7 +110,6 @@ country.group.dat.1e7to1e8 <- county.group.dat%>%
   filter(Avg_CEO_Comp_2019>1e7 & Avg_CEO_Comp_2019<1e8)
 country.group.dat.gt1e8 <- county.group.dat%>%
   filter(Avg_CEO_Comp_2019>1e8)
-
 ## Lookings at the country plots for these ranges
 # 1e5 - 1e6
 ggplot(country.group.dat.1e5to1e6)+
@@ -113,8 +151,17 @@ ggplot(country.group.dat.gt1e8)+
   ylab("Average Compendation paid to the CEO")+
   theme(axis.text.x = element_text(angle = 90))
 
+```
+
+Another interesting analysis can be drawn from the following plots:
+
+These plots show the rise or fall of CEO compensation in various countries over the course of 2019-2023. These trends motivate us to reason this fall or growth with the other parameters that we have at our arsenal.
+
+```{r, echo=FALSE}
 # Observing growth Across years
 # 1e5 - 1e6
+library(ggplot2)
+library(ggpubr)
 plot.dat <- tibble(
   Country = character(),
   year = numeric(),
@@ -294,3 +341,5 @@ ggplot(plot.dat)+
   geom_line(aes(x = year, y = Avg_CEO_Comp, col = Country))+
   ylab("Average CEO Compensation")
 
+
+```
